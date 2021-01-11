@@ -1,12 +1,12 @@
 # PNI_Object_History_Search_Explorer_Input_View
 
-## Exploer Input View To Search Object History In PNI Application
+## Search Object History In PNI Application
 
 
 ### Introduction
 
 
-In PNI Application's Object Editors, there is a action button named "Object History", which shows the history of the object currently in the editor manager. This modules helps you search for objects manipulated in the design manager environment.
+In PNI Application's Object Editors, there is an action button named "Object History", which shows the history of the object currently in the editor manager. This modules helps you search for objects manipulated in the design manager environment.
 
 ![](https://github.com/Aramideh/PNI_Object_History_Search_Explorer_Input_View/blob/main/resources/Object_History_Search.png)
 
@@ -48,6 +48,16 @@ In PNI Application's Object Editors, there is a action button named "Object Hist
 
 * 3: Load the module
 * 4: Start the application
+
+### Limitations and Known Issues
+
+* This module only works if The dynamic !swg_dsn_suppress_auto_relationship?! is false , if  true then it will suppress the swg_dsn_scheme_relationship records from being maintained, which is being used in this plugin.
+ 
+* If a table code hasn't been defined for a collection, when calling  swg_dsn_admin_engine.table_name_to_code it will raise an issue, no result will show up  for  tables which doesn't respond to this method
+
+* If a record is manipulated outside of the design, The object history can not show any information regarding that data manipulation
+
+
 
 
 ### Author Notes
