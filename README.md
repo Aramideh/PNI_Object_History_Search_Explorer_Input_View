@@ -55,7 +55,7 @@ In PNI Application's Object Editors, there is an action button named "Object His
  
 * If a table code hasn't been defined for a collection, when calling  swg_dsn_admin_engine.table_name_to_code it will raise an issue, no result will show up  for  tables which doesn't respond to this method
 
-* If a record is manipulated outside of the design, The object history can not show any information regarding that data manipulation
+* If a record is manipulated outside of a design, The object history can not show any information regarding that data manipulation
 
 
 
