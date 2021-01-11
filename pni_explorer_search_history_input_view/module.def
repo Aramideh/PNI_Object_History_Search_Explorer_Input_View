@@ -1,0 +1,9 @@
+pni_explorer_search_history_input_view	   1
+
+description
+	Searches for history of the objects in PNI application
+end
+
+requires
+end
+

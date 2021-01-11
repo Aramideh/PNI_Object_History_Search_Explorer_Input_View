@@ -1,0 +1,53 @@
+#% text_encoding = iso8859_1
+# ************************************************************ 
+#							       
+# (c)      S a d e q        A r a m i d e h   2 0 2 1
+
+# Sadeq Aramideh
+# Sadegh.a@gmail.com
+# Tel:+989112768076
+#							       
+# ************************************************************ 
+_package user
+
+_pragma(classify_level=restricted)
+_iter _method hash_table.fast_keys_and_elements_sorted_by_proc(_optional order_proc_or_name)
+	##
+	## Sortes the hash table using a order_proc , returns the key and 
+	## sorted collection containing the same elements as
+	##
+	
+	_for a_key _over _self.keys.as_sorted_collection(order_proc_or_name).fast_elements()
+	_loop
+		_loopbody ( a_key , _self [a_key] )
+	_endloop
+		
+_endmethod
+$
+
+
+_pragma(classify_level=restricted, topic={swg_design})
+_method swg_dsn_scheme_relationship.get_username()
+	##
+	## returns the username which done crud operation on the record
+	##
+	
+	>> 
+    _try
+    	>>  _self.swg_dsn_scheme_transaction.user_name.capitalise			
+    _when does_not_understand
+    	# means a_scheme_transaction is unset
+    	l_dsn_scheme << _self.scheme #swg_dsn_admin_engine.scheme_for_id(  _self.scheme_id )
+    	>> 
+    		_if l_dsn_scheme _is _unset 
+    		_then
+				v <<  swg_dsn_admin_engine.get_admin_view()
+				l_dsn_scheme << v.collections[:swg_dsn_scheme_archive].at ( _self.scheme_id )
+    			>> l_dsn_scheme.owner.default("Unknown").capitalise
+    		_else
+    			>>l_dsn_scheme.owner.capitalise
+    		_endif
+    _endtry
+			
+_endmethod 
+$

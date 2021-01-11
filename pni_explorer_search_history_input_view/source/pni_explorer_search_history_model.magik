@@ -1,0 +1,378 @@
+
+
+#% text_encoding = iso8859_1
+# ************************************************************ 
+#							       
+# (c)      S a d e q        A r a m i d e h   2 0 2 1
+
+# Sadeq Aramideh
+# Sadegh.a@gmail.com
+# Tel:+989112768076
+#							       
+# ************************************************************ 
+_package user
+
+
+
+## explorer model plugin for the pni_explorer_search_history_input_view class
+
+
+
+remex(:pni_explorer_search_history_model)
+$
+
+def_slotted_exemplar( :pni_explorer_search_history_model,
+    { 
+		{ :explorer_elements, # The top Explorer element holding all my elements
+          _unset } 
+		 }, 
+    { :plugin, :explorer_model_plugin_mixin } 
+)
+$
+
+
+_pragma(classify_level=restricted)
+pni_explorer_search_history_model.define_shared_constant( :databus_producer_data_types,
+                         { :explorer_elements }, 
+						 :public )
+$
+
+				 
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.sw_databus_data_requested( data_type_name)
+    _if data_type_name _is :explorer_elements
+    _then
+        _return { _self,  .explorer_elements  }
+    _endif
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_private _method pni_explorer_search_history_model.init( _gather args )
+	#---------------------------------------------------
+	## Initialises the plugin
+	##
+	#
+	# Customization for Project : MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-09 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+		
+	_super.init( _scatter args )
+
+	.explorer_elements << property_list.new()
+	
+	>> _self 
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.setup_explorer_elements()
+	#---------------------------------------------------
+	## Sets up the Explorer elements for this plugin.
+	##
+	#
+	# Customization for Project : MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-09 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+
+	#_if .explorer_elements[:top_element] _is _unset
+	#_then
+
+		# Create the top level group element for this plugin
+		.explorer_elements[:top_element]  << explorer_group_element.new_with( 
+						    :owner, _self,
+						    :name, "History Search Results", # Get from message
+						    :image, { :audit_history, :pni_explorer_search_history_input_view },
+						    :column_headings, { "Name" },
+						    :visible_field_names, { :name },
+						    :column_widths, { 400 })
+	#_endif
+
+_endmethod
+$
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.populate_explorer_model( l_rwo_sets , l_scheme_relationships  , _optional group_by_date? , group_by_users? , ace_name )
+	#---------------------------------------------------
+	## create group elements
+	##
+	#
+	# Customization for Project : MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-09 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+
+	#clean up the previous search results
+	.explorer_elements[:top_element] << property_list.new()
+	_self.setup_explorer_elements()
+
+	
+	# 
+	l << hash_table.new()
+	
+	_if group_by_date? _is _false _andif group_by_users? _is _false
+	_then
+
+		_for a_collection_set _over l_rwo_sets.homogeneous_sets( _true ).fast_elements()
+		_loop
+			_self.create_explorer_collection_element( a_collection_set.an_element().source_collection.external_name , .explorer_elements[:top_element] ,  a_collection_set ,ace_name )
+		_endloop
+		
+	_elif group_by_date? _is _true _andif group_by_users? _is _true 
+	_then
+		_for a_scheme_relationship _over l_scheme_relationships.fast_elements()
+		_loop
+			_try
+				_if ( l_record << a_scheme_relationship.record) _is _unset 
+				_then
+					_continue
+				_endif			
+			_when error
+				_continue
+			_endtry
+			#l_date_key <<  write_string(_scatter _allresults a_scheme.time_stamp.ymd())
+			#l_date_key << a_scheme_relationship.time_stamp.write_string.split_by(%space)[1]
+			l_date_key << write_string_with_separator ( _allresults a_scheme_relationship.time_stamp.ymd() ,"/")
+			l_user << a_scheme_relationship.get_username()
+			_if l[ l_date_key.as_symbol()] _is _unset
+			_then
+				l[ l_date_key.as_symbol()] <<  hash_table.new()
+			_endif
+			_if  l[ l_date_key.as_symbol()][l_user.as_symbol() ] _is _unset 
+			_then
+				l[ l_date_key.as_symbol()][l_user.as_symbol() ] << rwo_set.new()
+			_endif
+			
+			l[ l_date_key.as_symbol()][l_user.as_symbol() ].add( l_record )
+		_endloop
+
+		l_sort_proc <<   _proc (e1,e2)   >> e1.write_string _cf e2.write_string  _endproc
+		_for a_date,users _over l.fast_keys_and_elements_sorted_by_proc(l_sort_proc)
+		_loop
+			
+			l_date_group << _self.create_explorer_group_element (  a_date , .explorer_elements[:top_element] , _unset , ace_name )
+			
+			_for a_user,l_rwo_set _over l[a_date].fast_keys_and_elements()
+			_loop
+				
+				l_user_group  << _self.create_explorer_group_element (  a_user , l_date_group , _unset , ace_name )
+				
+				_for a_collection_set _over l_rwo_set.homogeneous_sets( _true ).fast_elements()
+				_loop
+					_self.create_explorer_collection_element( a_collection_set.an_element().source_collection.external_name , l_user_group ,  a_collection_set ,ace_name )
+				_endloop
+			_endloop
+
+			
+		_endloop
+	_elif group_by_date? _is _true _andif group_by_users? _is _false 
+	_then
+
+		_for a_scheme_relationship _over l_scheme_relationships.fast_elements()
+		_loop
+			_try
+				_if ( l_record << a_scheme_relationship.record) _is _unset 
+				_then
+					_continue
+				_endif			
+			_when error
+				_continue
+			_endtry
+			l_date_key << write_string_with_separator ( _allresults a_scheme_relationship.time_stamp.ymd() ,"/")
+			_if l[ l_date_key.as_symbol()] _is _unset
+			_then
+				l[ l_date_key.as_symbol()] <<  rwo_set.new()
+			_endif
+			
+			l[ l_date_key.as_symbol()].add( l_record )
+		_endloop
+
+		l_sort_proc <<   _proc (e1,e2)   >> e1.write_string _cf e2.write_string  _endproc
+		_for a_date,l_rwo_set _over l.fast_keys_and_elements_sorted_by_proc(l_sort_proc)
+		_loop
+			
+			l_date_group << _self.create_explorer_group_element (  a_date , .explorer_elements[:top_element] , _unset , ace_name )
+			
+			_for a_collection_set _over l_rwo_set.homogeneous_sets( _true ).fast_elements()
+			_loop
+				_self.create_explorer_collection_element( a_collection_set.an_element().source_collection.external_name , l_date_group ,  a_collection_set ,ace_name )
+			_endloop
+			
+			
+		_endloop
+	_elif group_by_date? _is _false _andif group_by_users? _is _true 
+	_then
+		_for a_scheme_relationship _over l_scheme_relationships.fast_elements()
+		_loop
+			_try
+				_if ( l_record << a_scheme_relationship.record) _is _unset 
+				_then
+					_continue
+				_endif			
+			_when error
+				_continue
+			_endtry
+			
+			l_user << a_scheme_relationship.get_username()
+			_if l[ l_user.as_symbol()] _is _unset
+			_then
+				l[ l_user.as_symbol()] <<  rwo_set.new()
+			_endif
+			
+			l[ l_user.as_symbol()].add( l_record )
+		_endloop
+
+		l_sort_proc <<   _proc (e1,e2)   >> e1.write_string _cf e2.write_string  _endproc
+		_for a_user,l_rwo_set _over l.fast_keys_and_elements_sorted_by_proc(l_sort_proc)
+		_loop
+			
+			l_user_group << _self.create_explorer_group_element (  a_user , .explorer_elements[:top_element] , _unset , ace_name )
+			
+			_for a_collection_set _over l_rwo_set.homogeneous_sets( _true ).fast_elements()
+			_loop
+				_self.create_explorer_collection_element( a_collection_set.an_element().source_collection.external_name , l_user_group ,  a_collection_set ,ace_name )
+			_endloop
+			
+		_endloop
+		
+	_endif
+	
+	
+	_self.databus_make_data_available( :explorer_elements, { _self, .explorer_elements })
+	
+	
+	_return .explorer_elements
+
+_endmethod 
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.create_explorer_group_element( name , parent, _optional image , ace_name  ,column_headings , visible_field_names , column_widths )
+	#---------------------------------------------------
+	## creates a explorer_group_element
+	##
+	#
+	# Customization for Project : MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-09 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+
+	>>  explorer_group_element.new_with( 
+		    :owner, _self,
+		    :name, name.write_string ,
+		    :parent, parent ,
+		    :image, image.default( { :open, :ui_resources }),							 
+		    :ace_name, ace_name.default("Default"),
+		    :column_headings, column_headings.default({ "Name" }),
+		    :visible_field_names, visible_field_names.default( { :name }),
+		    :column_widths, column_widths.default({ 400 }))
+	
+_endmethod
+$
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.create_explorer_collection_element( name , parent ,  a_rwo_set ,_optional ace_name , set_current?)
+	#---------------------------------------------------
+	## creates a explorer_collection_element
+	##
+	#
+	# Customization for Project : MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-09 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+	>> 
+		explorer_collection_element.new_with(
+			:owner, _self,
+			:name, name,
+			:parent, parent,
+			:ace_name, ace_name.default("Default"),
+			:set_current?, set_current?.default( _true),
+			:rwo_set, a_rwo_set )
+_endmethod
+$
+
+
+
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.post_init_plugins()
+    ##
+    ## Called when all plugins have been initialised. Will create
+    ## the Explorer elements for the plugin.
+    ## 
+   	_self.setup_explorer_elements()
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.action_allowed?( action, source_element, _optional records )
+	##
+	## Shoulds return TRUE when it is allowed to perform ACTION for
+	## SOURCE_ELEMENT with optionally RECORDS
+	## 
+	## Action               Source                 Records
+	## ------------------------------------------------------------------
+	## :delete              Explorer Element
+	##
+	## :delete_all          Explorer Element
+	##
+	## :delete_records      Explorer Element       Records
+	##
+	## :rename              Explorer Element
+	##
+	## By default returns (false, action)
+	## 
+	##
+	>> _if action _is :delete _orif action _is :rename
+	   _then
+		   >> .explorer_elements.includes?(source_element.parent)
+	   _elif action _is :delete_all
+	   _then
+		   # Allow the filter and free-text folders to be emptied
+		   _if source_element _is .explorer_elements[:top_element]
+		   _then
+			   _return  source_element.children.size > 0
+		   _else
+			   _return _false 
+		   _endif 
+	   _elif action _is :delete_records
+	   _then
+		   >> _false 
+	   _else
+		   >> _false 
+	   _endif
+
+
+    
+_endmethod
+$
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_model.note_change( who, what, _gather args)
+	##
+	## Conflict resolution method
+	##
+	>> _super(plugin).note_change( who, what, _scatter args)
+_endmethod
+$

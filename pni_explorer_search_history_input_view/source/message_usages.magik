@@ -1,0 +1,17 @@
+#% text_encoding = iso8859_1
+# ************************************************************ 
+#							       
+# (c)      S a d e q        A r a m i d e h   2 0 2 1
+
+# Sadeq Aramideh
+# Sadegh.a@gmail.com
+# Tel:+989112768076
+#							       
+# ************************************************************ 
+_package user
+
+_block
+	message_handler(:pni_explorer_search_history_input_view).set_uses_list( {:pni_explorer_search_input_view} )
+	
+_endblock
+$

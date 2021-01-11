@@ -1,0 +1,880 @@
+#% text_encoding = iso8859_1
+# ************************************************************ 
+#							       
+# (c)      S a d e q        A r a m i d e h   2 0 2 1
+
+# Sadeq Aramideh
+# Sadegh.a@gmail.com
+# Tel:+989112768076
+#							       
+# ************************************************************ 
+_package user
+
+##
+##
+## this module only works if The dynamic
+## !swg_dsn_suppress_auto_relationship?! is false , if  true
+## then it will suppress the swg_dsn_scheme_relationship
+## records from being maintained.  
+## 
+## known issues : if a table code hasnt been defined for a collection 
+## ,when calling  swg_dsn_admin_engine.table_name_to_code
+## it will raise an issue, no result will show up  for  tables
+## which doesn't respond to this method
+##
+##
+## Only works for desings, if a record is manipulated outside of the design, swg_dsn_scheme_relationship wil
+## not be maintained.
+##
+
+
+
+remex(:pni_explorer_search_history_input_view)
+$
+
+def_slotted_exemplar( :pni_explorer_search_history_input_view,
+	{
+		        { :rwo_hierarchy_component, _unset },
+			{ :records_source, _unset },
+			{ :query_predicate_component, _unset },
+			{ :simple_list_item , _unset },
+			{ :collections_list , _unset },
+			{ :thread_engine,     _unset },
+			{ :items , _unset } 
+	}, { :explorer_input_view } )
+$
+
+
+
+_pragma(classify_level=restricted)
+## Fields that will show up for :swg_dsn_scheme_relationship
+## table in the query_predicate_component
+pni_explorer_search_history_input_view.define_shared_constant( :swg_dsn_scheme_relationship_fields,
+	{ :time_stamp , :tracked? , :operation},
+:private )
+$
+
+_pragma(classify_level=basic)
+## Holds the name of the model_search plug-in used in the model
+pni_explorer_search_history_input_view.define_property( :pni_explorer_search_history_model, :string,
+					    "The name of the search engine to be used",
+					    _true, _false, "" )
+$
+
+
+_pragma(classify_level=restricted)
+## Group by Date? , default to false
+pni_explorer_search_history_input_view.def_property( :group_by_date?,
+	:type, :boolean,
+	:default_value, _false ,
+	:description, "Show the final results in respected date operations")
+$
+
+
+_pragma(classify_level=restricted)
+## Group by users? , defaults to false
+pni_explorer_search_history_input_view.def_property( :group_by_users?,
+	:type, :boolean,
+	:default_value, _false ,
+	:description, "Show the final results in user group names")
+$
+
+
+
+
+_pragma(classify_level=restricted)
+_private _method pni_explorer_search_history_input_view.init( name, a_framework, _optional properties )
+	## 
+	## Initialises slots and dependencies.
+	##
+
+	_super.init( name, a_framework, properties )
+
+	.thread_engine << thread_engine.new() 
+	.thread_engine.add_dependent( _self, :run_status )
+
+	.items << property_list.new(2)
+
+	>> _self
+	
+_endmethod
+$
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.build_gui( container )
+
+	#---------------------------------------------------
+	##
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-08 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------	
+
+	_local w,h
+	(w,h) << window_system.screen_size_pixels()
+	_local FHD? << w > 1900 _andif h > 1000  #1920 and 1080 but thats ok
+
+	
+	#_local pw << paned_window.new( container ,  :side_by_side?, _false , :resize? , _true )
+
+
+	_local  rc_main << rowcol.new( container ,_unset ,1 , :pixel,
+				  :left_spacing , 3 , 
+				  :right_spacing ,3 , 
+				  :top_spacing , 3 , 
+				  :bottom_spacing,3,
+				  :outer_spacing, 3,
+				  :border?, _true   )
+    
+	# Section 1
+	
+	_local gb1 << group_box.new(rc_main,"", :col_alignment,	:fill)
+	
+	_local rc1 << rowcol.new(gb1, _unset ,1,:pixel,
+				   :resize?,	_true,
+				   :col_spacing,	5,
+				   :row_spacing,	5,
+			           :default_col_alignment , :fill )
+	
+
+	#sourcec selection			   
+	label_item.new( rc1 , _self.message(:select_source) )
+	l_text_item_items << {
+					    {:all_in_table , _self.message(:all_in_table) } ,
+					    {:inside_trail ,_self.message(:inside_trail)},
+					    {:inside_selected_area ,_self.message(:inside_selected_area)},
+					    {:inside_window , _self.message(:inside_window) }
+				    }
+	l_text_item << text_choice_item.new( rc1 ,"" ,
+			      :items, l_text_item_items ,
+			      :enabled? , _true , 
+			      :resize? ,_false ,			
+			      :visibility,_true ,
+			      :change_selector , :|select_records_source()|,
+			      #:enabled_state_aspect , :txt_choice_item__enabled? ,
+			      :identifier , :records_criteria_value,
+			      :model,_self )
+	l_text_item.value << .records_source << :all_in_table
+	
+
+	
+
+	# rwo hierarchy component 
+	label_item.new( rc1 , _self.message(:select_collections) )
+	.rwo_hierarchy_component << rwo_hierarchy_component.new( "rwo_hierarchy", _self,
+								 :combo_box_item?, _not FHD? , 
+								 :mode, :many,
+								 :display_geometry?, _false,
+								 :ace_control, _self.ace_control,
+								 :select_types, { :collection } )
+
+	#.rwo_hierarchy_component.add_event_handler( :select, _self, :select_collection|()| )
+	.rwo_hierarchy_component.add_event_handler( :double_click, _self, :|rwo_hierarchy_component_double_clicked()| )
+	.rwo_hierarchy_component.build_gui( rc1 )
+	_self.filter_ds()
+	
+	button_item.new_safe(rc1, _self.message( :add ), _self, { :|add_collections()| ,:selection }   , :min_width, 75 , :col_alignment,	:left)
+	
+	
+	.simple_list_item  << simple_list_item.new( rc1  ,
+					      :col,	1,
+					      :row,	1,
+					      :col_alignment,	:fill,
+					      :row_alignment,	:fill,
+					      :max_height,   70 ,
+					      :items , _self.simple_list_items ,
+					      :property_aspect, :list,
+					      :mode, :multiple,
+					      :visible_item_count, _if FHD? _then >> 5 _else >> 2 _endif , 
+					      :enabled? , _true
+					    )
+	
+	.simple_list_item.menu << _self.collections_list_popup( .simple_list_item )
+
+	button_item.new_safe( rc1 , _self.message( :remove ), _self,  :|remove_collections()|   , :min_width, 75 , :col_alignment,	:left)
+
+
+
+
+#		rowcol_separator.new( rc_main , _false,
+#			      :minimise_direction, :up,
+#			      :col_alignment , :centre
+#			 )			
+
+	_local gb2 << group_box.new(rc_main,"",
+			    :col_alignment,	:fill)
+	
+	_local rc2 << rowcol.new(gb2, _unset ,1,:pixel,
+				 :resize?,	_true,
+				   :col_spacing,	5,
+				   :row_spacing,	5,
+			           :default_col_alignment , :fill)
+
+	label_item.new( rc2 , _self.message(:operation_info) )
+	
+	.query_predicate_component << query_predicate_component.new( "predicate", _self ,
+#							      :map_trail_provider, handler.new( _self, :map_trail_for|()|),
+#							      :map_selection_provider, handler.new( _self, :map_selection_for|()|),
+#							      :map_world_provider, handler.new( _self, :map_world_for|()|),
+							      :layout, :horizental )	 							     
+	.query_predicate_component.build_gui( rc2 )
+
+
+	
+
+	_local rc_group_by << rowcol.new(rc2, 1, _unset, _unset, :style, :button_box, :col_alignment, :left )
+	toggle_item.new(rc_group_by,_self.message(:group_by_date?) ,
+			:model, _self,
+			:value,  _self.group_by_date?,
+			:change_selector, :|group_by_date()| )
+
+	toggle_item.new(rc_group_by,_self.message(:group_by_users?) ,
+			:model, _self,
+			:value, _self.group_by_users? ,
+			:change_selector, :|group_by_users()| )
+	
+
+	
+	_local rc_button
+	_if ~FHD?
+	_then
+		 rc_button << rc_group_by
+	_else
+		 rc_button << rowcol.new(rc2, 1, _unset, _unset, :style, :button_box, :col_alignment, :right )
+	_endif
+	
+	.items[:search_btn] << button_item.new_safe(rc_button, _self.message( :search ), _self, :|search()|   , :min_width, 75)
+	.items[:search_interrupt_btn] << button_item.new_safe(rc_button, _self.message( :cancel ), _self, :|interrupt_search()|   , :min_width, 75, :enabled? , _false )	
+
+
+	
+	
+	>> container
+	
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.group_by_date(a_value)
+	#---------------------------------------------------
+	## setter for  group_by_date? property
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-08 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+
+	_self.group_by_date? << a_value
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.group_by_users( a_value )
+	#---------------------------------------------------
+	## setter for  group_by_users? property
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-08 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+	_self.group_by_users? << a_value
+_endmethod
+$
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.select_records_source( value  )
+	#---------------------------------------------------
+	## callback method for changes of the source of the records
+	## _for example , all records, inside trail , inside selected
+	## area geometry or inside current map view boundary  
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-06 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+	.records_source << value
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.simple_list_items
+	#---------------------------------------------------
+	##  returns the collections list of the simple list view
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+
+	_if .collections_list _is _unset 
+	_then
+		.collections_list << rope.new()
+	_endif
+	
+	>> .collections_list
+	
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.collections_list_popup( associated_window  )
+	#---------------------------------------------------
+	## builds popup for then simple list view item 
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+
+	l_pm << popup_menu.new( associated_window )
+
+	#button_item.new_safe(l_pm,_self.message(:remove_from_list),
+	#		     _self,:|remove_collection()|)
+
+	button_item.new_safe(l_pm,_self.message(:remove_from_list),
+			     _self,:|remove_collections()|)	
+	>> l_pm
+
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.view_information
+	#---------------------------------------------------
+	## this interface must be implemented to be able to use this
+	## module within explorer_input_plugin.   
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN) : Created
+	#-------------- End Revision History ---------------
+	
+    >> property_list.new_with( :id, :my_input_view,
+                         :name, "Audit History Results",
+                         :tooltip,  "Audit History Results",
+                         :short_help_text, "Switch to Audit History Results",
+                         :image, { :audit_history, :pni_explorer_search_history_input_view })
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.filter_ds()
+	#---------------------------------------------------
+	##
+	## removes all datasets from the query box except mit_manager.modelit_dataset
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	_local trees << .rwo_hierarchy_component.trees
+	_for i_child _over trees.fast_elements()
+	_loop
+		#DEBUG show("nil:Line 15", i_child.key,%tab ,i_child.key.key)
+		
+		_if i_child.key.key.name _isnt mit_manager.modelit_dataset.name
+		_then
+			i_child.detach()
+		_endif 
+	_endloop 
+	
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.schem_relationship_table
+	#---------------------------------------------------
+	##
+	## returns the swg_dsn_schem_relationship table
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	l_view << mit_manager.modelit_dataset
+	_dynamic !current_dsview!
+	         !current_dsview! << l_view
+	>> swg_dsn_scheme_relationship.table
+
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.search()
+	#---------------------------------------------------
+	##
+	## 
+	##
+	#
+	# Customization for Project :  MTNN  
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-04 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+	
+	_handling error _with _self.user_error_handler
+
+	.thread_engine.run_engine( _thisthread.vm_priority - 1, _true, _self, :|do_search()|)
+	
+
+
+_endmethod
+$
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.do_search()
+	#---------------------------------------------------
+	## 
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-06 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+	
+	_self.busy? << _true
+	_protect
+		
+		_self.update_status_info(_self.message(:searching))
+		_local collection << _self.schem_relationship_table	
+		_local predicate   << .query_predicate_component.predicate().default ( Predicate.ne(:id,1) )
+
+		pred << _unset 
+		_for an_item _over _self.simple_list_items.fast_elements()
+		_loop
+			_try _with what 
+				pred << pred _or predicate.eq(:table_code , swg_dsn_admin_engine.table_name_to_code( an_item[2].name))
+			_when swg_dsn_undefined_table_name
+				_continue
+			_endtry
+		_endloop
+
+		predicate << predicate _and pred
+		l_scheme_relationships << rope.new_from ( collection.select(predicate) )
+
+		
+		# Get all the rwos related to the scheme relationships
+		l_rwo_set << rwo_set.new()
+		_for an_scheme_relationship _over l_scheme_relationships.fast_elements()
+		_loop 
+			_try 
+				l_rwo_set.add ( an_scheme_relationship.record )
+			_when error
+			_endtry 	
+		_endloop
+
+		
+		# constrict rwo based on the user query ( all, inside trail , inside window , within geometry ... )
+		l_final_rwo_set << 			    
+			_if .records_source _is :all_in_table
+			_then
+				>> l_rwo_set	
+			_elif .records_source _is :inside_trail
+			_then
+				
+				_if _self.map_trail _is _unset _orif ~_self.map_trail.closed?
+				_then 
+					_self.update_status_info( _self.message(:trail_unset_or_not_closed) )
+					_return 
+				_endif	
+				
+				>> l_rwo_set.geometry_set(_self.map_trail.world).select(:within, _self.map_trail.as_pseudo_geometry).rwo_set()
+			_elif .records_source _is :inside_selected_area
+			_then
+				_if ( _self.map_selection.size > 1 )
+				_then
+					_self.update_status_info(_self.message(:multiple_geom_selected))
+					_return 			
+				_elif (selected_geom << _self.map_selection.an_element() ) _is _unset 
+				_then
+					_self.update_status_info(_self.message(:no_geom_selected))
+					_return
+				_elif selected_geom.geom_dimension < 2
+				_then
+					_self.update_status_info(_self.message(:geom_type_isnt_area))
+					_return 
+				_endif
+				
+				>>  l_rwo_set.geometry_set( selected_geom.world).select(:within, selected_geom ).rwo_set()
+			_elif .records_source _is :inside_window
+			_then
+				l_view_bounds <<  _self.application.get_service_provider(:map_manager).current_map_view.current_view_bounds
+				>>  l_rwo_set.geometry_set( _self.map_world).select(:within, l_view_bounds ).rwo_set()
+			_endif
+		
+		_self.update_status_info ( _self.message(:records_found ,l_final_rwo_set.size ) )		
+
+		
+
+		l_final_scheme_relationships << 
+		_if .records_source _is :all_in_table 
+		_then
+			>> l_scheme_relationships
+		_else
+			l_list << rope.new()
+			_for a_rwo _over l_final_rwo_set.fast_elements()
+			_loop
+				_for a_scheme _over swg_dsn_scheme_relationship.get_for_record_and_scheme ( a_rwo ).fast_elements()
+				_loop
+					_if l_scheme_relationships.includes?( a_scheme )
+					_then
+						l_list.add ( a_scheme )
+					_endif
+				_endloop
+			_endloop
+			>> l_list
+		_endif
+	
+		
+		# pass the results to explorer modeler
+		_self.display_results_on_explorert_output_view ( l_final_rwo_set , l_final_scheme_relationships )
+		
+	_protection
+		_self.busy? << _false
+	_endprotect
+	
+_endmethod
+$
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.display_results_on_explorert_output_view( l_rwo_set , l_scheme_relationships  )
+	#---------------------------------------------------
+	## Displays the output results on the explorer output view
+	## inuts are the final rwo_set records and related
+	## scheme_relationship records, we use these to get the users
+	## and the data of operation to visulasize the results by
+	## grouping them by date and user
+	#
+	# Customization for Project :  MTNN  
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-08 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	l_explorer_model_plugin << _self.model_plugin_with_name( _self.pni_explorer_search_history_model ) 
+
+	result_element << l_explorer_model_plugin.populate_explorer_model( l_rwo_set , l_scheme_relationships,  _self.group_by_date? , _self.group_by_users?   ,  _self.ace_control.ace.name )
+
+	# Notify the whole village about this incident!
+	_self.notify_double_click( result_element[:top_element] )
+
+	
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.interrupt_search()
+	#---------------------------------------------------
+	##  Interrupt the oongoing search thread
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-06 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+	
+	_if .thread_engine.running?()
+	_then
+		.thread_engine.interrupt_engine()
+	_endif 
+
+_endmethod
+$
+
+
+_pragma(classify_level=restricted)
+_method pni_explorer_search_history_input_view.note_change(who, aspect _gather data )
+	#---------------------------------------------------
+	##
+	##  Responds to changes from thread_engine 
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-06 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+        _if who _is .thread_engine
+        _then
+                _if aspect _is :run_status
+                _then
+                        status << data[1]
+                        _if status _is :ready
+                        _then
+                                # Search is complete
+				.items[:search_btn].enabled? << _not ( .items[:search_interrupt_btn].enabled? << _false )
+			_elif status _is :running
+			_then
+				.items[:search_interrupt_btn].enabled? << _not ( .items[:search_btn].enabled? << _false )
+                        _endif
+                _endif
+        _endif
+	
+	
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.rwo_hierarchy_component_double_clicked( a_vhs_tree  )
+	#---------------------------------------------------
+	##
+	## Callback method when double clicking on the rwo_hierarchy_component
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	_if ~a_vhs_tree.is_collection? 
+	_then
+		_self.update_status_info ( _self.message(:not_collection  , a_vhs_tree.key.write_string ) )
+		_return 
+	_endif
+	
+	_self.perform_safely( {:|add_collections()| , :double_click , a_vhs_tree.key } )	
+	
+
+_endmethod
+$
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.add_collections( aspect , _optional  a_collection )
+	#---------------------------------------------------
+	## 
+	## Adds collection to the list of the desired collection for query
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	_if aspect _is :double_click
+	_then
+		l_found? << _false 
+		_for a_elem _over .collections_list.fast_elements()
+		_loop
+			_if a_elem[1].eq?(a_collection.external_name.write_string)
+			_then
+				l_found? << _true
+				_leave
+			_endif
+		_endloop
+		
+		_if l_found? _is _false 
+		_then
+			.collections_list.add ( {a_collection.external_name.write_string , a_collection } )				
+		_endif
+		
+	_elif aspect _is :selection
+	_then
+		_self.add_current_selected_collections()
+	_endif
+	
+
+	.simple_list_item.items << .collections_list
+
+	_self.update_status_info ( _self.message(:collection_added))
+	
+_endmethod
+$
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.add_current_selected_collections()
+	#---------------------------------------------------
+	## 
+	## 
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	sel << .rwo_hierarchy_component.display_tree_selection
+	_for i_sel _over sel.fast_elements()
+	_loop
+		l_found? << _false 
+		_for a_elem _over .collections_list.fast_elements()
+		_loop @inner
+			_if a_elem[1].eq?( i_sel.key.key.external_name.write_string)
+			_then
+				l_found? << _true
+				_leave @inner
+			_endif
+		_endloop
+
+		_if l_found? _is  _false 
+		_then
+			.collections_list.add({ i_sel.key.key.external_name.write_string ,  i_sel.key.key })
+		_endif
+		
+	_endloop
+_endmethod
+$
+
+
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.remove_collections()
+	#---------------------------------------------------
+	## remove the collection in the added collections list
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+
+	_for a_selected_item _over .simple_list_item.selected_items.elements()
+	_loop
+		_for a_list_item _over .collections_list.elements()
+		_loop
+			_if a_list_item[2].name _is a_selected_item.name
+			_then
+				.collections_list.remove( a_list_item )
+			_endif
+		_endloop
+
+	_endloop
+
+
+	.simple_list_item.items << .collections_list
+	
+_endmethod
+$
+
+
+_pragma(classify_level=restricted, topic={explorer_view_plugin})
+_method pni_explorer_search_history_input_view.input_gained_focus()
+	##
+	## The search input view has gained focus.
+	##
+
+	# Normal behaviour
+	_super.input_gained_focus()
+
+	
+	# do something when in focus! or not!
+	# 
+	#
+_endmethod
+$
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.post_build_gui()
+	#---------------------------------------------------
+	## 
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+	
+	# Do normal initialisation
+	_super.post_build_gui()
+
+
+	# we are sure in this stage that query_predicate_components's
+	# field slot wouldn't be unset
+	.query_predicate_component.set_collection( _self.schem_relationship_table,
+					    :field_names,
+					    _self.swg_dsn_scheme_relationship_fields)
+
+	
+_endmethod
+$
+
+
+
+
+_pragma(classify_level=advanced)
+_method pni_explorer_search_history_input_view.update_status_info( a_text )
+	#---------------------------------------------------
+	## Updates the Status Infor 
+	##
+	#
+	# Customization for Project :  MTNN 
+	#
+	#---------------- Revision History -----------------
+	# (2021-01-05 Sadeq Aramideh, MTNN ) : Created
+	#-------------- End Revision History ---------------
+	
+	_self.framework.changed(:status_info , :text , a_text )
+	
+_endmethod
+$
+
+
+
+#
+#
+#_block
+#	smallworld_product.pni_application().plugin(:explorer_plugin).terminate()
+#_endblock
+#$
