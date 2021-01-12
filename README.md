@@ -57,7 +57,7 @@ In PNI Application's Object Editors, there is an action button named "Object His
 
 * If a record is manipulated outside of a design, The object history can not show any information regarding that data manipulation
 
-* The GUI of the module depends on the screen resolution, for Full HD screen the look would be like the image above, for the lesser resolution monitors, the rwo hierarcy component combo_box_item? propery would be true ( For Full HD is defaults to false).
+* The GUI of the module depends on the screen resolution, for Full HD screen the look would be like the image above, for the lesser resolution monitors, the rwo hierarcy component combo_box_item? propery would be true ( For Full HD it defaults to false).
 
 
 
